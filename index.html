@@ -1,0 +1,1188 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>PIXEL FM · 像素电台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-image: url('https://images.unsplash.com/photo-1518562180175-34a163b1a9a6?auto=format&fit=crop&w=1600&q=60');
+    --glass: 0.78;
+    --accent: #ff6ad5;
+    --accent-2: #8be9fd;
+    --ink: #1a1033;
+    --ink-soft: #4d3b73;
+    --paper: #fff8ee;
+    --paper-2: #f0e4d0;
+    --shadow: #1a1033;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    font-family: 'DotGothic16','Press Start 2P','VT323', "Microsoft YaHei", monospace;
+    color: var(--ink);
+    overflow:hidden;
+    background:#0b0820;
+    image-rendering: pixelated;
+    -webkit-font-smoothing: none;
+    font-smooth: never;
+  }
+  /* wallpaper layer */
+  #bg{
+    position:fixed; inset:0;
+    background: var(--bg-image) center/cover no-repeat;
+    image-rendering: pixelated;
+    filter: saturate(1.05);
+    z-index:0;
+  }
+  #bg::after{
+    content:""; position:absolute; inset:0;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,.08) 0 2px, transparent 2px 4px),
+      radial-gradient(ellipse at top, rgba(255,255,255,.0), rgba(0,0,0,.35));
+    pointer-events:none;
+  }
+
+  /* outer pixel frame helper */
+  .px{
+    background: rgba(255,248,238, var(--glass));
+    border: 3px solid var(--ink);
+    box-shadow:
+      0 0 0 3px var(--paper),
+      0 0 0 6px var(--ink),
+      6px 6px 0 6px rgba(0,0,0,.35);
+    border-radius:0;
+    backdrop-filter: blur(2px);
+  }
+  .px-soft{
+    background: rgba(255,248,238, var(--glass));
+    border: 2px solid var(--ink);
+    box-shadow: 3px 3px 0 0 var(--ink);
+  }
+  .btn{
+    font-family: inherit;
+    font-size: 12px;
+    background: var(--paper);
+    color: var(--ink);
+    border: 2px solid var(--ink);
+    padding: 6px 10px;
+    cursor: pointer;
+    box-shadow: 2px 2px 0 var(--ink);
+    user-select:none;
+  }
+  .btn:hover{ background: #fff }
+  .btn:active{ transform: translate(2px,2px); box-shadow: none }
+  .btn.primary{ background: var(--accent); color:#fff }
+  .btn.ghost{ background: transparent }
+  .tag{
+    display:inline-block; font-size:10px; padding:2px 6px;
+    border:2px solid var(--ink); background: var(--paper-2);
+    margin-right:4px;
+  }
+
+  /* layout */
+  #app{
+    position: relative; z-index: 1;
+    height: 100%;
+    display:grid;
+    grid-template-rows: 36px 1fr;
+  }
+
+  /* fake title bar */
+  #titlebar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 6px 10px;
+    background: var(--ink);
+    color: var(--paper);
+    border-bottom: 3px solid #000;
+    font-family:'Press Start 2P', monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+  #titlebar .dots{display:flex; gap:6px}
+  #titlebar .dot{
+    width:14px;height:14px;border:2px solid var(--paper);
+    background:#444;
+  }
+  #titlebar .dot.r{background:#ff5a5f}
+  #titlebar .dot.y{background:#ffcb3b}
+  #titlebar .dot.g{background:#5ddf6f}
+  #titlebar .right{display:flex; align-items:center; gap:8px}
+  #titlebar .clock{ color: var(--accent-2) }
+
+  main{
+    display:grid;
+    grid-template-columns: 1.05fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 16px;
+    padding: 16px;
+    overflow:hidden;
+  }
+  .card{
+    padding: 14px;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    min-height: 0;
+  }
+  .card h2{
+    margin:0 0 10px 0;
+    font-family:'Press Start 2P', monospace;
+    font-size: 12px;
+    letter-spacing:1px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .card h2 .badge{
+    font-size:9px; padding:3px 6px;
+    background: var(--ink); color: var(--paper);
+  }
+
+  /* PLAYER */
+  #player{ grid-row: 1 / 2; grid-column: 1 / 2 }
+  .player-body{
+    display:grid; grid-template-columns: 140px 1fr; gap: 14px;
+    flex:1; min-height:0;
+  }
+  .cover{
+    width:140px; height:140px;
+    background: #2b1c52;
+    border:2px solid var(--ink);
+    box-shadow: 3px 3px 0 var(--ink);
+    image-rendering: pixelated;
+    position:relative;
+    overflow:hidden;
+  }
+  .cover canvas{ width:100%; height:100%; display:block }
+  .cover .vinyl{
+    position:absolute; right:-30px; bottom:-30px;
+    width:80px;height:80px;
+    background: radial-gradient(circle at center, #2b1c52 30%, #1a1033 32%, #2b1c52 34%, #1a1033 60%);
+    border:2px solid #000; border-radius:50%;
+  }
+  .now{
+    display:flex; flex-direction:column; gap:6px; min-width:0;
+  }
+  .now .title{
+    font-size: 16px; font-weight:bold;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .now .artist{ font-size:12px; color: var(--ink-soft) }
+  .progress{
+    height: 12px; background: var(--paper-2);
+    border:2px solid var(--ink); position:relative; cursor:pointer;
+  }
+  .progress .fill{
+    position:absolute; left:0; top:0; bottom:0;
+    background: var(--accent);
+    background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.25) 0 4px, transparent 4px 8px);
+    width:0%;
+  }
+  .time{ font-family:'VT323', monospace; font-size:18px; display:flex; justify-content:space-between }
+  .controls{
+    display:flex; align-items:center; gap:8px;
+  }
+  .controls .btn{ font-size: 14px; padding: 6px 12px }
+  .controls .play{ font-size: 18px; padding: 6px 16px }
+  .vol{ display:flex; align-items:center; gap:6px; margin-left:auto }
+  .vol input{ width:80px }
+
+  /* LIBRARY */
+  #library{ grid-row: 1 / 2; grid-column: 2 / 3 }
+  .tabs{ display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap }
+  .tab{
+    font-family:'Press Start 2P', monospace; font-size:9px;
+    padding: 6px 8px; border:2px solid var(--ink);
+    background: var(--paper-2); cursor:pointer;
+  }
+  .tab.active{ background: var(--accent); color:#fff }
+  .panel{ flex:1; overflow:auto; padding-right: 4px; min-height: 0 }
+  .panel::-webkit-scrollbar{ width: 10px }
+  .panel::-webkit-scrollbar-track{ background: var(--paper-2); border-left:2px solid var(--ink) }
+  .panel::-webkit-scrollbar-thumb{ background: var(--ink) }
+
+  .row{
+    display:flex; align-items:center; gap:8px;
+    padding: 6px 8px;
+    border-bottom: 2px dashed rgba(0,0,0,.15);
+    cursor: pointer;
+  }
+  .row:hover{ background: rgba(255,255,255,.4) }
+  .row.active{ background: var(--accent); color:#fff }
+  .row .idx{ width:22px; text-align:right; opacity:.6; font-family:'VT323', monospace; font-size:18px }
+  .row .meta{ flex:1; min-width:0 }
+  .row .meta .t{ font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .row .meta .a{ font-size:11px; opacity:.7 }
+  .row .acts{ display:flex; gap:4px; opacity:.7 }
+  .row:hover .acts{ opacity:1 }
+  .row .acts a, .row .acts button{
+    font-size:10px; padding:2px 4px; border:2px solid var(--ink);
+    background:var(--paper); color: var(--ink); text-decoration:none;
+    cursor:pointer; font-family: inherit;
+  }
+  .empty{
+    padding:20px; text-align:center; opacity:.7; font-size:12px;
+  }
+  .toolbar{ display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap }
+  .toolbar input[type=text]{
+    flex:1; min-width:120px; padding:6px 8px;
+    border:2px solid var(--ink); background:var(--paper);
+    font-family: inherit; font-size: 12px;
+  }
+
+  /* CHAT */
+  #chat{ grid-row: 2 / 3; grid-column: 1 / 2 }
+  .messages{ flex:1; overflow:auto; padding-right: 4px; display:flex; flex-direction:column; gap:8px; min-height:0 }
+  .msg{ display:flex; gap:8px; align-items:flex-start }
+  .msg .who{
+    width:36px; height:36px; flex-shrink:0;
+    border:2px solid var(--ink); background: var(--paper-2);
+    display:grid; place-items:center;
+    font-family:'Press Start 2P'; font-size:9px;
+  }
+  .msg.you .who{ background: var(--accent); color:#fff }
+  .msg .bubble{
+    flex:1; padding:8px 10px;
+    border:2px solid var(--ink); background: var(--paper);
+    box-shadow: 2px 2px 0 var(--ink);
+    font-size: 13px; line-height:1.45;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .msg.you .bubble{ background: #fff }
+  .composer{ display:flex; gap:6px; margin-top:8px }
+  .composer textarea{
+    flex:1; resize:none; height:46px;
+    border:2px solid var(--ink); background:var(--paper);
+    padding:6px 8px; font-family: inherit; font-size: 13px;
+  }
+
+  /* MOOD */
+  #mood{ grid-row: 2 / 3; grid-column: 2 / 3 }
+  .weather{
+    display:flex; gap:10px; align-items:center;
+    padding: 8px; margin-bottom: 10px;
+    border:2px dashed var(--ink); background: rgba(255,255,255,.4);
+  }
+  .weather .icon{
+    width:48px;height:48px; image-rendering: pixelated;
+    background: var(--paper-2); border:2px solid var(--ink);
+    display:grid; place-items:center;
+    font-family:'Press Start 2P'; font-size:9px;
+  }
+  .weather .meta{ flex:1; font-size: 12px }
+  .weather .meta .big{ font-family:'VT323', monospace; font-size:24px; line-height:1 }
+  .moods{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom: 10px }
+  .moods .mb{
+    cursor:pointer; padding: 6px 8px;
+    border:2px solid var(--ink); background:var(--paper);
+    font-size: 12px;
+  }
+  .moods .mb.active{ background: var(--accent); color:#fff }
+  .recommend-list{
+    flex:1; overflow:auto; padding-right:4px; min-height:0;
+    border-top: 2px dashed rgba(0,0,0,.15); padding-top:6px;
+  }
+
+  /* SETTINGS DRAWER */
+  #settings-btn{ cursor:pointer; user-select:none }
+  #drawer{
+    position:fixed; top:0; right:0; bottom:0; width: 320px;
+    background: rgba(255,248,238,.95);
+    border-left: 3px solid var(--ink);
+    box-shadow: -6px 0 0 0 rgba(0,0,0,.35);
+    transform: translateX(110%);
+    transition: transform .18s steps(4, end);
+    z-index: 50;
+    padding: 16px;
+    overflow:auto;
+  }
+  #drawer.open{ transform: translateX(0) }
+  #drawer h3{
+    font-family:'Press Start 2P', monospace; font-size:11px;
+    margin: 16px 0 8px; letter-spacing:1px;
+  }
+  #drawer h3:first-child{ margin-top:0 }
+  .wp-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:8px }
+  .wp{
+    aspect-ratio: 1; background-size:cover; background-position:center;
+    border:2px solid var(--ink); cursor:pointer;
+    box-shadow: 2px 2px 0 var(--ink);
+  }
+  .wp.sel{ outline: 3px solid var(--accent); outline-offset: 2px }
+  .row-input{ display:flex; gap:6px; align-items:center; margin: 6px 0 }
+  .row-input label{ font-size:11px; min-width: 70px }
+  .row-input input[type=range]{ flex:1 }
+  .row-input input[type=text], .row-input input[type=password], .row-input select{
+    flex:1; padding:6px 8px; border:2px solid var(--ink);
+    font-family:inherit; font-size:12px; background:var(--paper);
+  }
+  .hint{ font-size:11px; color: var(--ink-soft); line-height:1.45; margin: 4px 0 8px }
+
+  /* responsive — narrow screens stack */
+  @media (max-width: 980px){
+    main{ grid-template-columns: 1fr; grid-template-rows: auto auto auto auto }
+    .player-body{ grid-template-columns: 100px 1fr }
+    .cover{ width:100px; height:100px }
+  }
+
+  /* tiny pixel icons via inline svg are inserted by JS */
+</style>
+</head>
+<body>
+<div id="bg"></div>
+<div id="app">
+  <header id="titlebar">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="dots">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+      </div>
+      <span>PIXEL · FM</span>
+    </div>
+    <div class="right">
+      <span id="clock" class="clock">--:--</span>
+      <span id="settings-btn" title="设置">[ ⚙ SETTINGS ]</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- PLAYER -->
+    <section id="player" class="card px">
+      <h2>► NOW PLAYING <span class="badge" id="src-badge">LOCAL</span></h2>
+      <div class="player-body">
+        <div class="cover">
+          <canvas id="cover-canvas" width="32" height="32"></canvas>
+          <div class="vinyl"></div>
+        </div>
+        <div class="now">
+          <div class="title" id="np-title">还没有歌曲在播放</div>
+          <div class="artist" id="np-artist">点开右侧库，添加 / 选择一首吧</div>
+          <div class="progress" id="progress"><div class="fill" id="progress-fill"></div></div>
+          <div class="time"><span id="t-cur">0:00</span><span id="t-end">0:00</span></div>
+          <div class="controls">
+            <button class="btn" id="prev-btn" title="上一首">⏮</button>
+            <button class="btn primary play" id="play-btn" title="播放">▶</button>
+            <button class="btn" id="next-btn" title="下一首">⏭</button>
+            <button class="btn" id="loop-btn" title="循环模式">↻ ALL</button>
+            <div class="vol">
+              <span style="font-family:'Press Start 2P';font-size:9px">VOL</span>
+              <input type="range" id="vol" min="0" max="1" step="0.01" value="0.8" />
+            </div>
+          </div>
+          <audio id="audio" preload="metadata"></audio>
+        </div>
+      </div>
+    </section>
+
+    <!-- LIBRARY -->
+    <section id="library" class="card px">
+      <h2>♪ LIBRARY <span class="badge" id="lib-count">0</span></h2>
+      <div class="tabs">
+        <button class="tab active" data-tab="qq">QQ 音乐</button>
+        <button class="tab" data-tab="netease">网易云</button>
+        <button class="tab" data-tab="local">本地文件</button>
+      </div>
+
+      <div class="toolbar" id="toolbar">
+        <!-- toolbar contents are tab-specific, rendered by JS -->
+      </div>
+
+      <div class="panel" id="lib-panel">
+        <div class="empty">选择一个分类开始</div>
+      </div>
+    </section>
+
+    <!-- CHAT -->
+    <section id="chat" class="card px">
+      <h2>✦ CHAT <span class="badge" id="chat-model">No Key</span></h2>
+      <div class="messages" id="messages"></div>
+      <div class="composer">
+        <textarea id="chat-input" placeholder="和我聊点什么吧 ── 输入后按 Enter 发送（Shift+Enter 换行）"></textarea>
+        <button class="btn primary" id="send-btn">SEND</button>
+      </div>
+    </section>
+
+    <!-- MOOD + WEATHER -->
+    <section id="mood" class="card px">
+      <h2>☂ MOOD &amp; WEATHER</h2>
+      <div class="weather" id="weather">
+        <div class="icon" id="w-icon">--</div>
+        <div class="meta">
+          <div class="big"><span id="w-temp">--</span>°C · <span id="w-desc">读取中…</span></div>
+          <div id="w-loc" style="opacity:.7">点击右上角「设置」可手动设置城市</div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;margin-bottom:6px">现在心情是？</div>
+        <div class="moods" id="moods">
+          <span class="mb" data-mood="开心">😊 开心</span>
+          <span class="mb" data-mood="放松">😌 放松</span>
+          <span class="mb" data-mood="孤独">🥀 孤独</span>
+          <span class="mb" data-mood="伤感">😢 伤感</span>
+          <span class="mb" data-mood="兴奋">🔥 兴奋</span>
+          <span class="mb" data-mood="专注">🧠 专注</span>
+          <span class="mb" data-mood="浪漫">💗 浪漫</span>
+          <span class="mb" data-mood="疲惫">🥱 疲惫</span>
+        </div>
+        <button class="btn primary" id="reco-btn">► 让 AI 为我推荐 5 首</button>
+      </div>
+      <div class="recommend-list" id="reco-list" style="margin-top:8px">
+        <div class="empty">选择心情后点上面的按钮</div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- SETTINGS DRAWER -->
+<aside id="drawer" class="px-soft">
+  <h3>WALLPAPER</h3>
+  <div class="wp-grid" id="wp-grid"></div>
+  <div class="row-input" style="margin-top:8px">
+    <label>自定义</label>
+    <input type="file" id="wp-upload" accept="image/*" />
+  </div>
+
+  <h3>TRANSPARENCY</h3>
+  <div class="row-input">
+    <label>面板</label>
+    <input type="range" id="glass-range" min="0.2" max="1" step="0.02" value="0.78" />
+    <span id="glass-val">78%</span>
+  </div>
+
+  <h3>THEME COLOR</h3>
+  <div class="row-input" id="theme-row">
+    <span class="wp" data-c="#ff6ad5" style="background:#ff6ad5"></span>
+    <span class="wp" data-c="#8be9fd" style="background:#8be9fd"></span>
+    <span class="wp" data-c="#a3ff9d" style="background:#a3ff9d"></span>
+    <span class="wp" data-c="#ffd166" style="background:#ffd166"></span>
+    <span class="wp" data-c="#c89bff" style="background:#c89bff"></span>
+    <span class="wp" data-c="#ff8552" style="background:#ff8552"></span>
+  </div>
+
+  <h3>AI</h3>
+  <div class="hint">兼容 OpenAI 协议，国内推荐 DeepSeek。Key 仅保存在本地浏览器。</div>
+  <div class="row-input">
+    <label>Endpoint</label>
+    <input type="text" id="ai-endpoint" placeholder="https://api.deepseek.com" />
+  </div>
+  <div class="row-input">
+    <label>Model</label>
+    <input type="text" id="ai-model" placeholder="deepseek-chat" />
+  </div>
+  <div class="row-input">
+    <label>API Key</label>
+    <input type="password" id="ai-key" placeholder="sk-..." />
+  </div>
+  <button class="btn" id="ai-save" style="margin-top:4px">保存 AI 配置</button>
+
+  <h3>CITY (天气)</h3>
+  <div class="row-input">
+    <label>城市</label>
+    <input type="text" id="city-input" placeholder="例如：杭州 / Tokyo / New York" />
+    <button class="btn" id="city-save">查询</button>
+  </div>
+
+  <h3>音乐账号 · 快捷入口</h3>
+  <div class="hint">QQ 音乐与网易云的「我喜欢」需登录后才能播放，已为你预设跳转链接：</div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <a class="btn" href="https://y.qq.com/n/ryqq_v2/profile/like/song" target="_blank" rel="noopener">↗ 打开 QQ 音乐「我喜欢」</a>
+    <a class="btn" href="https://music.163.com/#/user/home?id=1796731189" target="_blank" rel="noopener">↗ 打开网易云用户主页</a>
+  </div>
+
+  <div style="margin-top:16px;text-align:center">
+    <button class="btn" id="drawer-close">关闭</button>
+  </div>
+</aside>
+
+<script>
+/* =========================================================
+   PIXEL FM — single-file player
+   ========================================================= */
+
+const $ = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+const LS = {
+  get: (k, d=null) => { try{ const v=localStorage.getItem(k); return v==null?d:JSON.parse(v) }catch{ return d } },
+  set: (k, v) => localStorage.setItem(k, JSON.stringify(v)),
+};
+
+/* ---------- clock ---------- */
+function tickClock(){
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  $('#clock').textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+setInterval(tickClock, 1000); tickClock();
+
+/* ---------- pixel cover art (procedural) ---------- */
+function drawCover(seed = 0){
+  const c = $('#cover-canvas');
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  const size = 32;
+  const palette = [
+    ['#1a1033','#ff6ad5','#8be9fd','#fff8ee','#c89bff'],
+    ['#0b0820','#ffd166','#ff8552','#fff8ee','#8be9fd'],
+    ['#1a1033','#a3ff9d','#8be9fd','#fff8ee','#c89bff'],
+    ['#1a1033','#ff6ad5','#ffd166','#fff8ee','#ff8552'],
+  ];
+  const p = palette[seed % palette.length];
+  ctx.fillStyle = p[0]; ctx.fillRect(0,0,size,size);
+  // mountain / city silhouette
+  for(let x=0; x<size; x++){
+    const h = 8 + Math.floor((Math.sin((x+seed)*0.5)+1)*5);
+    ctx.fillStyle = p[4];
+    ctx.fillRect(x, size-h, 1, h);
+  }
+  // a moon
+  ctx.fillStyle = p[3];
+  ctx.fillRect(22,5,5,5);
+  ctx.fillStyle = p[0];
+  ctx.fillRect(24,4,3,3);
+  // stars
+  ctx.fillStyle = p[2];
+  for(let i=0;i<8;i++){
+    const x = (i*7 + seed*3) % size;
+    const y = (i*3 + 2) % 14;
+    ctx.fillRect(x,y,1,1);
+  }
+  // a bird-ish shape
+  ctx.fillStyle = p[1];
+  ctx.fillRect(8,14,2,1); ctx.fillRect(7,15,4,1); ctx.fillRect(8,16,2,1);
+}
+drawCover(0);
+
+/* ---------- wallpapers ---------- */
+const WALLPAPERS = [
+  // pixel-art-friendly photos
+  'https://images.unsplash.com/photo-1518562180175-34a163b1a9a6?auto=format&fit=crop&w=1600&q=60',
+  'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=1600&q=60',
+  'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=60',
+  'https://images.unsplash.com/photo-1496715976403-7e36dc43f17b?auto=format&fit=crop&w=1600&q=60',
+  'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1600&q=60',
+  'https://images.unsplash.com/photo-1444065381814-865dc9da92c0?auto=format&fit=crop&w=1600&q=60',
+  // generated SVG pixel scenes
+  generateSvgWallpaper('night'),
+  generateSvgWallpaper('day'),
+  generateSvgWallpaper('forest'),
+];
+function generateSvgWallpaper(theme){
+  const palettes = {
+    night:  ['#0b0820','#1a1033','#2b1c52','#ff6ad5','#fff8ee'],
+    day:    ['#cdeafe','#a8d8f7','#ffd166','#ff8552','#fff8ee'],
+    forest: ['#0e1f12','#1a3424','#2f5d3c','#a3ff9d','#fff8ee'],
+  };
+  const p = palettes[theme];
+  const w=160,h=100;
+  let r = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${w} ${h}' shape-rendering='crispEdges'>`;
+  r += `<rect width='${w}' height='${h}' fill='${p[0]}'/>`;
+  // sky stripes
+  r += `<rect y='0' width='${w}' height='40' fill='${p[1]}'/>`;
+  r += `<rect y='40' width='${w}' height='30' fill='${p[2]}'/>`;
+  // sun/moon
+  r += `<rect x='120' y='12' width='10' height='10' fill='${p[3]}'/>`;
+  // mountain silhouette
+  for(let x=0;x<w;x++){
+    const hh = 10 + Math.round((Math.sin(x*0.13)+1)*7);
+    r += `<rect x='${x}' y='${70-hh}' width='1' height='${hh}' fill='${p[2]}'/>`;
+  }
+  // ground
+  r += `<rect y='70' width='${w}' height='30' fill='${p[1]}'/>`;
+  // stars / details
+  for(let i=0;i<20;i++){
+    const x = (i*13)%w, y=(i*5)%30;
+    r += `<rect x='${x}' y='${y}' width='1' height='1' fill='${p[4]}'/>`;
+  }
+  r += '</svg>';
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(r);
+}
+function renderWallpapers(){
+  const grid = $('#wp-grid'); grid.innerHTML='';
+  const cur = LS.get('wp', WALLPAPERS[0]);
+  WALLPAPERS.forEach(url => {
+    const d = document.createElement('div');
+    d.className = 'wp' + (url===cur?' sel':'');
+    d.style.backgroundImage = `url("${url}")`;
+    d.onclick = () => { setWallpaper(url); renderWallpapers() };
+    grid.appendChild(d);
+  });
+}
+function setWallpaper(url){
+  document.documentElement.style.setProperty('--bg-image', `url("${url}")`);
+  $('#bg').style.backgroundImage = `url("${url}")`;
+  LS.set('wp', url);
+}
+setWallpaper(LS.get('wp', WALLPAPERS[0]));
+renderWallpapers();
+
+$('#wp-upload').addEventListener('change', e => {
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = () => setWallpaper(r.result);
+  r.readAsDataURL(f);
+});
+
+/* ---------- transparency ---------- */
+const glass = LS.get('glass', 0.78);
+document.documentElement.style.setProperty('--glass', glass);
+$('#glass-range').value = glass;
+$('#glass-val').textContent = Math.round(glass*100)+'%';
+$('#glass-range').addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  document.documentElement.style.setProperty('--glass', v);
+  $('#glass-val').textContent = Math.round(v*100)+'%';
+  LS.set('glass', v);
+});
+
+/* ---------- theme color ---------- */
+const savedAccent = LS.get('accent', '#ff6ad5');
+document.documentElement.style.setProperty('--accent', savedAccent);
+$$('#theme-row .wp').forEach(el => {
+  el.addEventListener('click', () => {
+    const c = el.dataset.c;
+    document.documentElement.style.setProperty('--accent', c);
+    LS.set('accent', c);
+  });
+});
+
+/* ---------- settings drawer ---------- */
+$('#settings-btn').addEventListener('click', () => $('#drawer').classList.toggle('open'));
+$('#drawer-close').addEventListener('click', () => $('#drawer').classList.remove('open'));
+
+/* =========================================================
+   LIBRARY  — three sources: qq / netease / local
+   ========================================================= */
+const QQ_LIKE_URL = 'https://y.qq.com/n/ryqq_v2/profile/like/song';
+const NETEASE_HOME = 'https://music.163.com/#/user/home?id=1796731189';
+const NETEASE_USER_ID = '1796731189';
+
+let lib = {
+  qq:      LS.get('lib.qq', []),       // {title, artist, link?, audio?}
+  netease: LS.get('lib.netease', []),
+  local:   [],                          // not persisted (object urls)
+};
+let currentTab = 'qq';
+let currentList = [];                   // active rendered list
+let currentIndex = -1;
+
+function saveLib(){
+  LS.set('lib.qq', lib.qq);
+  LS.set('lib.netease', lib.netease);
+}
+
+function tabSongs(tab){ return lib[tab] || [] }
+
+function searchUrl(tab, q){
+  const enc = encodeURIComponent(q);
+  return tab==='qq'
+    ? `https://y.qq.com/n/ryqq/search?w=${enc}&t=song`
+    : `https://music.163.com/#/search/m/?s=${enc}&type=1`;
+}
+
+// 免费歌曲列表（Pixabay CDN）
+const FREE_MUSIC = [
+  { title: 'Happy Rock', artist: 'Kevin MacLeod', url: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3' },
+  { title: 'Summer Fun', artist: 'Evgeny Bardyuzha', url: 'https://cdn.pixabay.com/download/audio/2022/03/24/audio_6a0f2fc02c.mp3' },
+  { title: 'Inspire', artist: 'Gvidon', url: 'https://cdn.pixabay.com/download/audio/2023/10/30/audio_0a13b8df67.mp3' },
+  { title: 'Funky Game', artist: 'Gvidon', url: 'https://cdn.pixabay.com/download/audio/2022/08/23/audio_4393a93391.mp3' },
+  { title: 'Corporate Motivation', artist: 'Gvidon', url: 'https://cdn.pixabay.com/download/audio/2022/05/24/audio_4a1d06c539.mp3' },
+  { title: 'Traveling Light', artist: 'Jason Shaw', url: 'https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3' },
+  { title: 'Ambient Piano', artist: 'Sergei', url: 'https://cdn.pixabay.com/download/audio/2023/11/01/audio_e326c98497.mp3' },
+  { title: 'Sweet Dreams', artist: 'FASSounds', url: 'https://cdn.pixabay.com/download/audio/2022/03/24/audio_3b8f5b4333.mp3' },
+  { title: 'Night Drive', artist: 'Lexin Music', url: 'https://cdn.pixabay.com/download/audio/2022/10/25/audio_6a16a7e6da.mp3' },
+  { title: 'Catchy', artist: 'Gvidon', url: 'https://cdn.pixabay.com/download/audio/2023/08/07/audio_e33e80fb97.mp3' },
+  { title: 'Up In My Jam', artist: 'FASSounds', url: 'https://cdn.pixabay.com/download/audio/2022/03/09/audio_c2e71e8c98.mp3' },
+  { title: 'Ukulele Beach', artist: 'FASSounds', url: 'https://cdn.pixabay.com/download/audio/2022/02/07/audio_8dfb8637e2.mp3' },
+];
+
+function addFreeMusicToLibrary(){
+  FREE_MUSIC.forEach(song => {
+    lib.local.push({ title: song.title, artist: song.artist, audio: song.url });
+  });
+  renderLib();
+  pushMsg('ai', `✅ 已添加 ${FREE_MUSIC.length} 首免费歌曲到「本地文件」！点击即可播放。`);
+}
+
+function renderToolbar(){
+  const tb = $('#toolbar'); tb.innerHTML='';
+  if(currentTab==='local'){
+    tb.innerHTML = `
+      <input type="file" id="local-files" accept="audio/*" multiple />
+      <button class="btn" id="clear-local">清空</button>
+      <button class="btn" id="add-free-btn">🎵 免费歌曲</button>
+    `;
+    $('#local-files').addEventListener('change', e=>{
+      const files = Array.from(e.target.files);
+      files.forEach(f=>{
+        lib.local.push({
+          title: f.name.replace(/\.[^.]+$/,''),
+          artist: '本地文件',
+          audio: URL.createObjectURL(f),
+        });
+      });
+      renderLib();
+    });
+    $('#clear-local').addEventListener('click', ()=>{ lib.local=[]; renderLib() });
+    $('#add-free-btn').addEventListener('click', addFreeMusicToLibrary);
+  } else {
+    const platform = currentTab==='qq' ? 'QQ 音乐' : '网易云';
+    tb.innerHTML = `
+      <input type="text" id="add-input" placeholder="添加歌曲：歌名 — 歌手（回车）" />
+      <button class="btn" id="add-btn">+ 添加</button>
+      <a class="btn" id="open-platform" target="_blank" rel="noopener">↗ ${platform}</a>
+      <button class="btn" id="import-btn">📥 批量</button>
+    `;
+    $('#open-platform').href = currentTab==='qq' ? QQ_LIKE_URL : NETEASE_HOME;
+    const add = ()=>{
+      const v = $('#add-input').value.trim(); if(!v) return;
+      const [t, a] = v.split(/\s*[—\-–]\s*/);
+      lib[currentTab].push({
+        title: t || v,
+        artist: a || '未知',
+        link: searchUrl(currentTab, v),
+      });
+      $('#add-input').value='';
+      saveLib(); renderLib();
+    };
+    $('#add-btn').addEventListener('click', add);
+    $('#add-input').addEventListener('keydown', e=>{ if(e.key==='Enter') add() });
+    $('#import-btn').addEventListener('click', ()=>{
+      const txt = prompt('每行一首：「歌名 — 歌手」');
+      if(!txt) return;
+      txt.split('\n').map(s=>s.trim()).filter(Boolean).forEach(line=>{
+        const [t,a] = line.split(/\s*[—\-–]\s*/);
+        lib[currentTab].push({
+          title: t || line, artist: a || '未知',
+          link: searchUrl(currentTab, line),
+        });
+      });
+      saveLib(); renderLib();
+    });
+  }
+}
+
+function renderLib(){
+  const list = tabSongs(currentTab);
+  currentList = list;
+  $('#lib-count').textContent = list.length;
+  const panel = $('#lib-panel');
+  if(list.length===0){
+    panel.innerHTML = `<div class="empty">${
+      currentTab==='local'
+        ? '点上方按钮添加本地音频（mp3 / flac / m4a / wav）'
+        : '暂无歌曲。点击「+ 添加」或「批量导入」'
+    }</div>`;
+    return;
+  }
+  panel.innerHTML = '';
+  list.forEach((s, i) => {
+    const row = document.createElement('div');
+    row.className = 'row' + (i===currentIndex && currentTab===playingTab ? ' active' : '');
+    row.innerHTML = `
+      <div class="idx">${String(i+1).padStart(2,'0')}</div>
+      <div class="meta">
+        <div class="t">${escapeHtml(s.title)}</div>
+        <div class="a">${escapeHtml(s.artist || '')}</div>
+      </div>
+      <div class="acts">
+        ${s.audio
+            ? `<button data-act="play">▶</button>`
+            : `<a target="_blank" rel="noopener" href="${s.link || searchUrl(currentTab, s.title+' '+(s.artist||''))}">↗</a>`
+        }
+        <button data-act="del">✕</button>
+      </div>
+    `;
+    row.addEventListener('click', e => {
+      if(e.target.dataset.act==='del'){
+        list.splice(i,1);
+        if(currentTab!=='local') saveLib();
+        renderLib();
+        return;
+      }
+      // click → if local, play; otherwise mark + open external link
+      if(s.audio){ playFrom(currentTab, i) }
+      else {
+        playFromExternal(currentTab, i);
+      }
+    });
+    panel.appendChild(row);
+  });
+}
+
+$$('.tab').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    $$('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    currentTab = t.dataset.tab;
+    renderToolbar();
+    renderLib();
+  });
+});
+renderToolbar();
+renderLib();
+
+/* =========================================================
+   PLAYER
+   ========================================================= */
+const audio = $('#audio');
+let playingTab = null;
+let loopMode = 'all'; // 'all' | 'one' | 'shuffle'
+
+audio.volume = parseFloat(LS.get('vol', 0.8));
+$('#vol').value = audio.volume;
+$('#vol').addEventListener('input', e=>{
+  audio.volume = parseFloat(e.target.value);
+  LS.set('vol', audio.volume);
+});
+
+function fmt(t){
+  if(!isFinite(t)) return '0:00';
+  const m = Math.floor(t/60), s = Math.floor(t%60);
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+audio.addEventListener('timeupdate', ()=>{
+  $('#t-cur').textContent = fmt(audio.currentTime);
+  $('#progress-fill').style.width =
+    (audio.duration? (audio.currentTime/audio.duration*100) : 0) + '%';
+});
+audio.addEventListener('loadedmetadata', ()=>{
+  $('#t-end').textContent = fmt(audio.duration);
+});
+audio.addEventListener('ended', ()=>{
+  if(loopMode==='one'){ audio.currentTime=0; audio.play(); return }
+  next();
+});
+audio.addEventListener('play',  ()=> $('#play-btn').textContent='⏸');
+audio.addEventListener('pause', ()=> $('#play-btn').textContent='▶');
+
+$('#progress').addEventListener('click', e=>{
+  if(!audio.duration) return;
+  const r = e.currentTarget.getBoundingClientRect();
+  audio.currentTime = (e.clientX - r.left) / r.width * audio.duration;
+});
+$('#play-btn').addEventListener('click', ()=>{
+  if(!audio.src){
+    // pick first playable
+    if(lib.local.length){ playFrom('local', 0); return }
+    pushMsg('ai', '我还没有本地音频可播。把 mp3 拖到「本地文件」标签里就能放啦 ♪');
+    return;
+  }
+  if(audio.paused) audio.play(); else audio.pause();
+});
+$('#prev-btn').addEventListener('click', prev);
+$('#next-btn').addEventListener('click', next);
+$('#loop-btn').addEventListener('click', ()=>{
+  loopMode = loopMode==='all' ? 'one' : (loopMode==='one' ? 'shuffle' : 'all');
+  $('#loop-btn').textContent = loopMode==='all' ? '↻ ALL' : (loopMode==='one' ? '↻ ONE' : '⤮ SHUF');
+});
+
+function setNowPlaying(song, tab){
+  $('#np-title').textContent = song.title || '—';
+  $('#np-artist').textContent = song.artist || '';
+  $('#src-badge').textContent = (tab||'').toUpperCase();
+  drawCover((song.title||'').length + (song.artist||'').length);
+}
+
+function playFrom(tab, idx){
+  const list = tabSongs(tab); if(!list[idx]) return;
+  const song = list[idx];
+  if(!song.audio){ playFromExternal(tab, idx); return }
+  playingTab = tab; currentIndex = idx;
+  audio.src = song.audio;
+  audio.play().catch(()=>{});
+  setNowPlaying(song, tab);
+  renderLib();
+}
+function playFromExternal(tab, idx){
+  const list = tabSongs(tab); if(!list[idx]) return;
+  const song = list[idx];
+  playingTab = tab; currentIndex = idx;
+  audio.removeAttribute('src'); audio.load();
+  setNowPlaying(song, tab);
+  renderLib();
+  // open in new tab so user can play on QQ/网易云
+  const url = song.link || searchUrl(tab, song.title+' '+(song.artist||''));
+  window.open(url, '_blank', 'noopener');
+  pushMsg('ai', `已为你在${tab==='qq'?'QQ 音乐':'网易云'}打开「${song.title}」。本地播放器面板会显示元数据；想要内嵌播放，把音频文件加到「本地文件」标签即可。`);
+}
+function next(){
+  if(!playingTab) return;
+  const list = tabSongs(playingTab); if(!list.length) return;
+  let nextIdx;
+  if(loopMode==='shuffle') nextIdx = Math.floor(Math.random()*list.length);
+  else nextIdx = (currentIndex + 1) % list.length;
+  if(list[nextIdx].audio) playFrom(playingTab, nextIdx);
+  else { currentIndex = nextIdx; setNowPlaying(list[nextIdx], playingTab); renderLib(); }
+}
+function prev(){
+  if(!playingTab) return;
+  const list = tabSongs(playingTab); if(!list.length) return;
+  let p = (currentIndex - 1 + list.length) % list.length;
+  if(list[p].audio) playFrom(playingTab, p);
+  else { currentIndex = p; setNowPlaying(list[p], playingTab); renderLib(); }
+}
+
+/* =========================================================
+   WEATHER  (Open-Meteo, no API key)
+   ========================================================= */
+async function loadWeather(){
+  const cached = LS.get('weather', null);
+  if(cached && Date.now() - cached.ts < 30*60*1000){
+    paintWeather(cached); return;
+  }
+  let lat, lon, label;
+  const cityName = LS.get('city', null);
+  if(cityName){
+    try{
+      const g = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=zh`).then(r=>r.json());
+      if(g.results && g.results[0]){
+        lat = g.results[0].latitude; lon = g.results[0].longitude;
+        label = `${g.results[0].name}${g.results[0].admin1?' · '+g.results[0].admin1:''}`;
+      }
+    }catch{}
+  }
+  if(lat==null){
+    try{
+      const pos = await new Promise((res,rej)=>{
+        if(!navigator.geolocation) return rej();
+        navigator.geolocation.getCurrentPosition(res, rej, {timeout:6000});
+      });
+      lat = pos.coords.latitude; lon = pos.coords.longitude; label = '当前位置';
+    }catch{
+      // fallback: hangzhou
+      lat = 30.27; lon = 120.15; label = '杭州（默认）';
+    }
+  }
+  try{
+    const w = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m&timezone=auto`).then(r=>r.json());
+    const data = {
+      ts: Date.now(),
+      label,
+      temp: w.current.temperature_2m,
+      code: w.current.weather_code,
+      wind: w.current.wind_speed_10m,
+      humidity: w.current.relative_humidity_2m,
+    };
+    LS.set('weather', data);
+    paintWeather(data);
+  }catch{
+    paintWeather({ts:Date.now(),label:label||'未知',temp:'--',code:0,desc:'获取失败'});
+  }
+}
+function wmoText(code){
+  if(code===0) return ['晴','SUN'];
+  if([1,2,3].includes(code)) return ['多云','CLOU'];
+  if([45,48].includes(code)) return ['雾','FOG'];
+  if([51,53,55,56,57].includes(code)) return ['毛毛雨','DRIZ'];
+  if([61,63,65,66,67,80,81,82].includes(code)) return ['下雨','RAIN'];
+  if([71,73,75,77,85,86].includes(code)) return ['下雪','SNOW'];
+  if([95,96,99].includes(code)) return ['雷雨','THDR'];
+  return ['未知','--'];
+}
+function paintWeather(d){
+  const [zh, en] = wmoText(d.code ?? 0);
+  $('#w-temp').textContent = d.temp ?? '--';
+  $('#w-desc').textContent = d.desc || zh;
+  $('#w-loc').textContent = d.label || '';
+  $('#w-icon').textContent = en;
+  weatherCtx = { zh, temp: d.temp, label: d.label, code: d.code, humidity: d.humidity, wind: d.wind };
+}
+let weatherCtx = null;
+loadWeather();
+
+$('#city-save').addEventListener('click', ()=>{
+  const v = $('#city-input').value.trim();
+  if(!v) return;
+  LS.set('city', v); LS.set('weather', null);
+  loadWeather();
+});
+$('#city-input').value = LS.get('city','') || '';
+
+/* =========================================================
+   AI CHAT  (OpenAI-compatible)
+   ========================================================= */
+const AI_DEFAULTS = { endpoint: 'https://api.deepseek.com', model: 'deepseek-chat' };
+function aiCfg(){
+  return {
+    endpoint: LS.get('ai.endpoint', AI_DEFAULTS.endpoint),
+    model:    LS.get('ai.model',    AI_DEFAULTS.model),
+    key:      LS.get('ai.key', ''),
+  };
+}
+function refreshAiUI(){
+  const c = aiCfg();
+  $('#ai-endpoint').value = c.endpoint;
+  $('#ai-model').value = c.model;
+  $('#ai-key').value = c.key;
+  $('#chat-model').textContent = c.key ? c.model : 'No Key';
+}
+$('#ai-save').addEventListener('click', ()=>{
+  LS.set('ai.endpoint', $('#ai-endpoint').value.trim() || AI_DEFAULTS.endpoint);
+  LS.set('ai.model',    $('#ai-model').value.trim()    || AI_DEFAULTS.model);
+  LS.set('ai.key',      $('#ai-key').value.trim());
+  refreshAiUI();
+  pushMsg('ai', '配置已保存。试试问我「今天适合听什么？」');
+});
+refreshAiUI();
+
+const messages = [];
+function pushMsg(who, text){
+  messages.push({who, text});
+  const wrap = $('#messages');
+  const div = document.createElement('div');
+  div.className = 'msg ' + who;
+  div.innerHTML = `<div class="who">${who==='you'?'YOU':'AI'}</div><div class="bubble"></div>`;
+  div.querySelector('.bubble').textContent = text;
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+  return div.querySelector('.bubble');
+}
+pushMsg('ai', '你好，我是 PIXEL FM 的 AI 副驾。\n→ 可以聊天、找歌、根据天气和心情给你点歌。\n→ 第一次使用请在右上 ⚙ 里粘贴一个 API Key（推荐 DeepSeek）。');
+
+async function callAI(userText, system, onStream){
+  const c = aiCfg();
+  if(!c.key){
+    return '我还没有 API Key，没法真正回复你 ── 点右上角 ⚙ 粘一个吧（DeepSeek 几毛钱够聊很久）。';
+  }
+  const url = c.endpoint.replace(/\/$/,'') + '/v1/chat/completions';
+  const sys = system || '你是 PIXEL FM 的 AI 助手，懂音乐，回复简洁、亲切，用中文。';
+  const msgs = [{role:'system', content: sys}];
+  // include short history
+  messages.slice(-8).forEach(m=>{
+    msgs.push({role: m.who==='you'?'user':'assistant', content: m.text});
+  });
+  msgs.push({role:'user', content: userText});
+
+  try{
+    const res = await fetch(url, {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer '+c.key,
+      },
+      body: JSON.stringify({ model: c.model, messages: msgs, stream: !!onStream, temperature: 0.7 }),
+    });
+    if(!onStream){
+      const j = await res.json();
+      if(j.error) return '【错误】'+ (j.error.message||JSON.stringify(j.error));
+      return j.choices?.[0]?.message?.content || '(没有回复)';
+    }
+    // streaming
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let acc = '';
+    while(true){
+      const {value, done} = await reader.read();
+      if(done) break;
+      const chunk = dec.decode(value);
+      chunk.split('\n').forEach(line=>{
+        line = line.trim();
+        if(!line.startsWith('data:')) return;
+        const data = line.slice(5).trim();
+        if(data==='[DONE]') return;
+        try{
+          const j = JSON.parse(data);
+          const piece = j.choices?.[0]?.delta?.content || '';
+          if(piece){ acc += piece; onStream(acc) }
+        }catch{}
+      });
+    }
+    return acc;
+  }catch(e){
+    return '【网络错误】'+ e.message;
+  }
+}
+
+async function send(){
+  const v = $('#chat-input').value.trim(); if(!v) return;
+  $('#chat-input').value=''; pushMsg('you', v);
+  const bubble = pushMsg('ai', '…');
+  await callAI(v, null, (acc)=>{ bubble.textContent = acc });
+}
+$('#send-btn').addEventListener('click', send);
+$('#chat-input').addEventListener('keydown', e=>{
+  if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send() }
+});
+
+/* =========================================================
+   MOOD-BASED RECOMMENDATIONS
+   ========================================================= */
+let mood = '放松';
+$$('#moods .mb').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    $$('#moods .mb').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active'); mood = b.dataset.mood;
+  });
+});
+$$('#moods .mb')[1].classList.add('active');
+
+$('#reco-btn').addEventListener('click', async ()=>{
+  const list = $('#reco-list');
+  list.innerHTML = '<div class="empty">AI 正在写歌单… ♪</div>';
+  const w = weatherCtx;
+  const wDesc = w ? `天气：${w.zh}，气温 ${w.temp}°C，地点 ${w.label}` : '天气：未知';
+  const sys = `你是一个懂音乐的 DJ。根据用户当前心情和天气，推荐 5 首歌。
+严格只输出 JSON 数组，每项 {"title":"...","artist":"...","reason":"一句不超过 16 字的推荐理由"}。
+不要任何前言、解释、markdown 围栏。语言用中文，曲库以华语 / 日韩 / 英文流行/独立为主。`;
+  const user = `${wDesc}；心情：${mood}。给我 5 首。`;
+  const raw = await callAI(user, sys);
+  let arr = [];
+  try{
+    const m = raw.match(/\[[\s\S]*\]/);
+    arr = JSON.parse(m ? m[0] : raw);
+  }catch{
+    list.innerHTML = `<div class="empty">解析失败：<br><pre style="white-space:pre-wrap">${escapeHtml(raw).slice(0,400)}</pre></div>`;
+    return;
+  }
+  list.innerHTML = '';
+  arr.forEach((s, i)=>{
+    const row = document.createElement('div');
+    row.className = 'row';
+    const q = `${s.title} ${s.artist||''}`;
+    row.innerHTML = `
+      <div class="idx">${String(i+1).padStart(2,'0')}</div>
+      <div class="meta">
+        <div class="t">${escapeHtml(s.title)} <span class="tag">${escapeHtml(s.artist||'')}</span></div>
+        <div class="a">${escapeHtml(s.reason||'')}</div>
+      </div>
+      <div class="acts">
+        <a target="_blank" rel="noopener" href="${searchUrl('qq', q)}">QQ</a>
+        <a target="_blank" rel="noopener" href="${searchUrl('netease', q)}">网易</a>
+        <button data-act="add-qq">+QQ</button>
+        <button data-act="add-net">+网易</button>
+      </div>
+    `;
+    row.addEventListener('click', e=>{
+      const t = e.target.dataset.act;
+      if(t==='add-qq'){
+        lib.qq.push({title:s.title, artist:s.artist||'', link:searchUrl('qq', q)});
+        saveLib();
+        if(currentTab==='qq') renderLib();
+      } else if(t==='add-net'){
+        lib.netease.push({title:s.title, artist:s.artist||'', link:searchUrl('netease', q)});
+        saveLib();
+        if(currentTab==='netease') renderLib();
+      }
+    });
+    list.appendChild(row);
+  });
+});
+
+/* =========================================================
+   helpers
+   ========================================================= */
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* keyboard shortcuts */
+window.addEventListener('keydown', e=>{
+  if(e.target.matches('input,textarea')) return;
+  if(e.code==='Space'){ e.preventDefault(); $('#play-btn').click() }
+  else if(e.code==='ArrowRight'){ next() }
+  else if(e.code==='ArrowLeft'){ prev() }
+});
+</script>
+</body>
+</html>
